@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<title></title>
+		<meta name="description" content="">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<style>
+			main {
+				margin: 12px auto;
+				width: 600px;
+				text-align: center;
+			}
+
+			.calculator-container {
+				display: flex;
+				flex-direction: column;
+			}
+
+			[readonly] {
+				border: none;
+				outline: none;
+			}
+
+			.value-group {
+				display: flex;
+			}
+
+			.value-group label {
+				text-align: right;
+				margin: 4px 6px;
+				flex-basis: 40%;
+			}
+
+			.value-group input {
+				margin: 4px 6px;
+				flex-basis: 40%;
+			}
+
+			.value-group input + select,
+			.value-group input + span {
+				text-align: left;
+				margin: 4px 6px;
+				flex-basis: 10%;
+			}
+
+			.value-group select,
+			.value-group span {
+				text-align: left;
+				margin: 4px 6px;
+				flex-basis: 50%;
+			}
+
+			.hidden {
+				display: none;
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<h2>Current, voltage and power monitor circuit calculator</h2>
+			<div class="calculator-container">
+				<div class="value-group">
+					<label for="measurement-type">Measurement type</label>
+					<select id="measurement-type">
+						<option value="OPAMP-ADC">OpAmp + ADC</option>
+						<option value="ADC" selected>ADC only</option>
+					</select>
+				</div>
+
+				<div class="value-group hidden">
+					<label for="opamp-gain">OpAmp gain</label>
+					<input type="number" id="opamp-gain" value="1">
+				</div>
+
+				<div class="value-group">
+					<label for="adc-precision">ADC precision</label>
+					<input type="number" id="adc-precision" value="16">
+					<span>bit</span>
+				</div>
+
+				<div class="value-group">
+					<label for="min-adc-voltage">Min ADC voltage</label>
+					<input type="number" id="min-adc-voltage" value="-81.9175">
+					<select id="min-adc-voltage-unit">
+						<option value="1">V</option>
+						<option value="0.001" selected>mV</option>
+						<option value="0.000001">uV</option>
+					</select>
+				</div>
+
+				<div class="value-group">
+					<label for="max-adc-voltage">Max ADC voltage</label>
+					<input type="number" id="max-adc-voltage" value="81.9175">
+					<select id="max-adc-voltage-unit">
+						<option value="1">V</option>
+						<option value="0.001" selected>mV</option>
+						<option value="0.000001">uV</option>
+					</select>
+				</div>
+
+				<div class="value-group hidden">
+					<label for="min-shunt-voltage">Min shunt voltage:</label>
+					<input type="text" id="min-shunt-voltage" readonly>
+				</div>
+
+				<div class="value-group hidden">
+					<label for="max-shunt-voltage">Max shunt voltage:</label>
+					<input type="text" id="max-shunt-voltage" readonly>
+				</div>
+
+				<div class="value-group">
+					<label for="circuit-voltage">Circuit voltage</label>
+					<input type="number" id="circuit-voltage" value="5">
+					<select id="circuit-voltage-unit">
+						<option value="1">V</option>
+						<option value="0.001">mV</option>
+						<option value="0.000001">uV</option>
+					</select>
+				</div>
+
+				<div class="value-group">
+					<label for="shunt-resistance">Shunt resistance</label>
+					<input type="number" id="shunt-resistance" value="1">
+					<select id="shunt-resistance-unit">
+						<option value="1000000">MΩ</option>
+						<option value="1000">kΩ</option>
+						<option value="1" selected>Ω</option>
+						<option value="0.001">mΩ</option>
+					</select>
+				</div>
+
+				<div class="value-group">
+					<label for="load-resistance">Load resistance</label>
+					<input type="number" id="load-resistance" value="1">
+					<select id="load-resistance-unit">
+						<option value="1000000">MΩ</option>
+						<option value="1000" selected>kΩ</option>
+						<option value="1">Ω</option>
+						<option value="0.001">mΩ</option>
+					</select>
+				</div>
+
+				<br>
+
+				<div class="value-group">
+					<label for="shunt-voltage">Shunt voltage:</label>
+					<input type="text" id="shunt-voltage" readonly>
+				</div>
+
+				<div class="value-group">
+					<label for="load-voltage">Load voltage:</label>
+					<input type="text" id="load-voltage" readonly>
+				</div>
+
+				<div class="value-group">
+					<label for="circuit-current">Circuit current:</label>
+					<input type="text" id="circuit-current" readonly>
+				</div>
+
+				<div class="value-group">
+					<label for="shunt-voltage-steps">Shunt voltage steps:</label>
+					<input type="text" id="shunt-voltage-steps" readonly>
+				</div>
+
+				<div class="value-group">
+					<label for="shunt-current-resolution">Shunt current resolution:</label>
+					<input type="text" id="shunt-current-resolution" readonly>
+				</div>
+
+				<div class="value-group">
+					<label for="max-measurable-current">Max measurable current:</label>
+					<input type="text" id="max-measurable-current" readonly>
+				</div>
+
+				<br>
+
+				<button id="calculate-button">Calculate</button>
+			</div>
+		</main>
+		<script async defer>
+			const measurementTypeInput           = document.querySelector('#measurement-type');
+			const opampGainInput                 = document.querySelector('#opamp-gain');
+			const adcPrecisionInput              = document.querySelector('#adc-precision');
+			const minAdcVoltageInput             = document.querySelector('#min-adc-voltage');
+			const minAdcVoltageUnitInput         = document.querySelector('#min-adc-voltage-unit');
+			const maxAdcVoltageInput             = document.querySelector('#max-adc-voltage');
+			const maxAdcVoltageUnitInput         = document.querySelector('#max-adc-voltage-unit');
+			const minShuntVoltageInput           = document.querySelector('#min-shunt-voltage');
+			const maxShuntVoltageInput           = document.querySelector('#max-shunt-voltage');
+			const shuntResistanceInput           = document.querySelector('#shunt-resistance');
+			const shuntResistanceUnitInput       = document.querySelector('#shunt-resistance-unit');
+			const loadResistanceInput            = document.querySelector('#load-resistance');
+			const loadResistanceUnitInput        = document.querySelector('#load-resistance-unit');
+			const circuitVoltageInput            = document.querySelector('#circuit-voltage');
+			const circuitVoltageUnitInput        = document.querySelector('#circuit-voltage-unit');
+			const shuntVoltageInput              = document.querySelector('#shunt-voltage');
+			const loadVoltageInput               = document.querySelector('#load-voltage');
+			const circuitCurrentInput            = document.querySelector('#circuit-current');
+			const shuntVoltageStepsInput         = document.querySelector('#shunt-voltage-steps');
+			const shuntCurrentResolutionInput    = document.querySelector('#shunt-current-resolution');
+			const maxMeasurableCurrentInput      = document.querySelector('#max-measurable-current');
+			const calculateButton                = document.querySelector('#calculate-button');
+
+			function getValues() {
+				const opampGain = parseFloat(opampGainInput.value);
+				const adcPrecision = parseFloat(adcPrecisionInput.value);
+				const minAdcVoltage = parseFloat(minAdcVoltageInput.value);
+				const minAdcVoltageUnit = parseFloat(
+					minAdcVoltageUnitInput.options[minAdcVoltageUnitInput.selectedIndex].value
+				);
+				const minAdcVoltageValue = minAdcVoltage * minAdcVoltageUnit;
+				const maxAdcVoltage = parseFloat(maxAdcVoltageInput.value);
+				const maxAdcVoltageUnit = parseFloat(
+					maxAdcVoltageUnitInput.options[maxAdcVoltageUnitInput.selectedIndex].value
+				);
+				const maxAdcVoltageValue = maxAdcVoltage * maxAdcVoltageUnit;
+				const circuitVoltage = parseFloat(circuitVoltageInput.value);
+				const circuitVoltageUnit = parseFloat(
+					circuitVoltageUnitInput.options[circuitVoltageUnitInput.selectedIndex].value
+				);
+				const shuntResistance = parseFloat(shuntResistanceInput.value);
+				const shuntResistanceUnit = parseFloat(
+					shuntResistanceUnitInput.options[shuntResistanceUnitInput.selectedIndex].value
+				);
+				const loadResistance = parseFloat(loadResistanceInput.value);
+				const loadResistanceUnit = parseFloat(
+					loadResistanceUnitInput.options[loadResistanceUnitInput.selectedIndex].value
+				);
+				const shuntVoltageRange = maxAdcVoltageValue - minAdcVoltageValue;
+				const adcMaxSteps =  Math.pow(2, adcPrecision)
+				const shuntVoltageStepsValue = shuntVoltageRange / adcMaxSteps;
+
+				return {
+					opampGain: opampGain,
+					adcMaxSteps: adcMaxSteps,
+					minAdcVoltageValue: minAdcVoltageValue,
+					maxAdcVoltageValue: maxAdcVoltageValue,
+					shuntResistanceValue: shuntResistance * shuntResistanceUnit,
+					loadResistanceValue: loadResistance * loadResistanceUnit,
+					circuitVoltageValue: circuitVoltage * circuitVoltageUnit,
+					shuntVoltageStepsValue: shuntVoltageStepsValue / opampGain
+				}
+			}
+
+			function calculateMinShuntVoltage({ opampGain, minAdcVoltageValue }) {
+				return minAdcVoltageValue / opampGain;
+			}
+
+			function calculateMaxShuntVoltage({ opampGain, maxAdcVoltageValue }) {
+				return maxAdcVoltageValue / opampGain;
+			}
+
+			function calculateShuntVoltage({ shuntResistanceValue, loadResistanceValue, circuitVoltageValue }) {
+				return (shuntResistanceValue / (shuntResistanceValue + loadResistanceValue)) * circuitVoltageValue;
+			}
+
+			function calculateLoadVoltage({ shuntResistanceValue, loadResistanceValue, circuitVoltageValue }) {
+				return (loadResistanceValue / (shuntResistanceValue + loadResistanceValue)) * circuitVoltageValue;
+			}
+
+			function calculateCircuitCurrent({ shuntResistanceValue, loadResistanceValue, circuitVoltageValue }) {
+				return circuitVoltageValue / (shuntResistanceValue + loadResistanceValue);
+			}
+
+			function calculateShuntCurrentResolution(values) {
+				const shuntVoltage = (values.shuntResistanceValue / (values.shuntResistanceValue + values.loadResistanceValue)) * values.circuitVoltageValue;
+				const circuitCurrentValue = calculateCircuitCurrent(values);
+
+				return circuitCurrentValue / (shuntVoltage / values.shuntVoltageStepsValue);
+			}
+
+			function calculateMaxMeasurableCurrent(values) {
+				const shuntCurrentResolution = calculateShuntCurrentResolution(values);
+
+				return values.adcMaxSteps * shuntCurrentResolution;
+			}
+
+			function formatResult(number, unit) {
+				const negative = number < 0;
+				const prefix = negative ? '-' : '';
+
+				number = Math.abs(number);
+
+				if (number >= 1000000) {
+					return prefix + (number / 1000000).toFixed(4) + ` m${unit}`;
+				} else if (number >= 1000) {
+					return prefix + (number / 1000).toFixed(4) + ` k${unit}`;
+				} else if (number >= 1) {
+					return prefix + number.toFixed(4) + ' ' + unit;
+				} else if (number >= 0.001) {
+					return prefix + (number / 0.001).toFixed(4) + ` m${unit}`;
+				} else {
+					return prefix + (number / 0.000001).toFixed(4) + ` u${unit}`;
+				}
+			}
+
+			measurementTypeInput.addEventListener('change', () => {
+				const measurementType = measurementTypeInput.options[measurementTypeInput.selectedIndex].value;
+				const opampGainContainer = opampGainInput.parentNode;
+				const minShuntVoltageContainer = minShuntVoltageInput.parentNode;
+				const maxShuntVoltageContainer = maxShuntVoltageInput.parentNode;
+
+				switch (measurementType) {
+					case 'OPAMP-ADC':
+						opampGainContainer.classList.remove('hidden');
+						minShuntVoltageContainer.classList.remove('hidden');
+						maxShuntVoltageContainer.classList.remove('hidden');
+						break;
+					case 'ADC':
+						opampGainContainer.classList.add('hidden');
+						minShuntVoltageContainer.classList.add('hidden');
+						maxShuntVoltageContainer.classList.add('hidden');
+						opampGainInput.value = 1;
+						break;
+				}
+			});
+
+			calculateButton.addEventListener('click', () => {
+				let values = getValues();
+
+				minShuntVoltageInput.value = formatResult(calculateMinShuntVoltage(values), 'V');
+				maxShuntVoltageInput.value = formatResult(calculateMaxShuntVoltage(values), 'V');
+				shuntVoltageInput.value = formatResult(calculateShuntVoltage(values), 'V');
+				loadVoltageInput.value = formatResult(calculateLoadVoltage(values), 'V');
+				circuitCurrentInput.value = formatResult(calculateCircuitCurrent(values), 'A');
+				shuntVoltageStepsInput.value = formatResult(values.shuntVoltageStepsValue, 'V');
+				shuntCurrentResolutionInput.value = formatResult(calculateShuntCurrentResolution(values), 'A');
+				maxMeasurableCurrentInput.value = formatResult(calculateMaxMeasurableCurrent(values), 'A');
+			});
+		</script>
+	</body>
+</html>
