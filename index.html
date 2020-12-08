@@ -74,6 +74,12 @@
 					<input type="number" id="opamp-gain" value="1">
 				</div>
 
+				<div class="value-group hidden">
+					<label for="opamp-offset-voltage-max">OpAmp offset voltage max</label>
+					<input type="number" id="opamp-offset-voltage-max" value="1">
+					<span>uV</span>
+				</div>
+
 				<div class="value-group">
 					<label for="adc-precision">ADC precision</label>
 					<input type="number" id="adc-precision" value="16">
@@ -98,6 +104,12 @@
 						<option value="0.001" selected>mV</option>
 						<option value="0.000001">uV</option>
 					</select>
+				</div>
+
+				<div class="value-group">
+					<label for="max-accepted-loss">Max accepted loss on shunt</label>
+					<input type="number" id="max-accepted-loss" value="5">
+					<span>%</span>
 				</div>
 
 				<div class="value-group hidden">
@@ -145,6 +157,11 @@
 				<br>
 
 				<div class="value-group">
+					<label for="max-voltage-loss">Max voltage loss on shunt:</label>
+					<input type="text" id="max-voltage-loss" readonly>
+				</div>
+
+				<div class="value-group">
 					<label for="shunt-voltage">Shunt voltage:</label>
 					<input type="text" id="shunt-voltage" readonly>
 				</div>
@@ -170,6 +187,11 @@
 				</div>
 
 				<div class="value-group">
+					<label for="min-measurable-current">Min measurable current:</label>
+					<input type="text" id="min-measurable-current" readonly>
+				</div>
+
+				<div class="value-group">
 					<label for="max-measurable-current">Max measurable current:</label>
 					<input type="text" id="max-measurable-current" readonly>
 				</div>
@@ -182,11 +204,14 @@
 		<script async defer>
 			const measurementTypeInput           = document.querySelector('#measurement-type');
 			const opampGainInput                 = document.querySelector('#opamp-gain');
+			const opampOffsetVoltageMaxInput     = document.querySelector('#opamp-offset-voltage-max');
 			const adcPrecisionInput              = document.querySelector('#adc-precision');
 			const minAdcVoltageInput             = document.querySelector('#min-adc-voltage');
 			const minAdcVoltageUnitInput         = document.querySelector('#min-adc-voltage-unit');
 			const maxAdcVoltageInput             = document.querySelector('#max-adc-voltage');
 			const maxAdcVoltageUnitInput         = document.querySelector('#max-adc-voltage-unit');
+			const maxAcceptedLossInput           = document.querySelector('#max-accepted-loss');
+			const maxVoltageLossInput            = document.querySelector('#max-voltage-loss');
 			const minShuntVoltageInput           = document.querySelector('#min-shunt-voltage');
 			const maxShuntVoltageInput           = document.querySelector('#max-shunt-voltage');
 			const shuntResistanceInput           = document.querySelector('#shunt-resistance');
@@ -201,10 +226,12 @@
 			const shuntVoltageStepsInput         = document.querySelector('#shunt-voltage-steps');
 			const shuntCurrentResolutionInput    = document.querySelector('#shunt-current-resolution');
 			const maxMeasurableCurrentInput      = document.querySelector('#max-measurable-current');
+			const minMeasurableCurrentInput      = document.querySelector('#min-measurable-current');
 			const calculateButton                = document.querySelector('#calculate-button');
 
 			function getValues() {
 				const opampGain = parseFloat(opampGainInput.value);
+				const opampOffsetVoltageMax = parseFloat(opampOffsetVoltageMaxInput.value)/1000/1000;
 				const adcPrecision = parseFloat(adcPrecisionInput.value);
 				const minAdcVoltage = parseFloat(minAdcVoltageInput.value);
 				const minAdcVoltageUnit = parseFloat(
@@ -216,6 +243,7 @@
 					maxAdcVoltageUnitInput.options[maxAdcVoltageUnitInput.selectedIndex].value
 				);
 				const maxAdcVoltageValue = maxAdcVoltage * maxAdcVoltageUnit;
+				const maxAcceptedLossValue = parseFloat(maxAcceptedLossInput.value);
 				const circuitVoltage = parseFloat(circuitVoltageInput.value);
 				const circuitVoltageUnit = parseFloat(
 					circuitVoltageUnitInput.options[circuitVoltageUnitInput.selectedIndex].value
@@ -234,14 +262,23 @@
 
 				return {
 					opampGain: opampGain,
+					opampOffsetVoltageMax: opampOffsetVoltageMax,
 					adcMaxSteps: adcMaxSteps,
 					minAdcVoltageValue: minAdcVoltageValue,
 					maxAdcVoltageValue: maxAdcVoltageValue,
+					maxAcceptedLossValue: maxAcceptedLossValue,
 					shuntResistanceValue: shuntResistance * shuntResistanceUnit,
 					loadResistanceValue: loadResistance * loadResistanceUnit,
 					circuitVoltageValue: circuitVoltage * circuitVoltageUnit,
 					shuntVoltageStepsValue: shuntVoltageStepsValue / opampGain
 				}
+			}
+
+			function calculateMaxVoltageLoss(values) {
+				const circuitVoltage = values.circuitVoltageValue;
+				const maxAllowedShuntVoltage = circuitVoltage * values.maxAcceptedLossValue / 100;
+
+				return maxAllowedShuntVoltage;
 			}
 
 			function calculateMinShuntVoltage({ opampGain, minAdcVoltageValue }) {
@@ -273,8 +310,15 @@
 
 			function calculateMaxMeasurableCurrent(values) {
 				const shuntCurrentResolution = calculateShuntCurrentResolution(values);
+				const maxVoltageLoss = calculateMaxVoltageLoss(values);
+				const maxCurrentByAdc = values.adcMaxSteps * shuntCurrentResolution;
+				const maxCurrentByAllowedLoss = maxVoltageLoss / values.shuntResistanceValue;
 
-				return values.adcMaxSteps * shuntCurrentResolution;
+				return Math.min(maxCurrentByAllowedLoss, maxCurrentByAdc);
+			}
+
+			function calculateMinMeasurableCurrent(values) {
+				return values.opampOffsetVoltageMax / values.shuntResistanceValue;
 			}
 
 			function formatResult(number, unit) {
@@ -299,17 +343,20 @@
 			measurementTypeInput.addEventListener('change', () => {
 				const measurementType = measurementTypeInput.options[measurementTypeInput.selectedIndex].value;
 				const opampGainContainer = opampGainInput.parentNode;
+				const opampOffsetVoltageMaxContainer = opampOffsetVoltageMaxInput.parentNode;
 				const minShuntVoltageContainer = minShuntVoltageInput.parentNode;
 				const maxShuntVoltageContainer = maxShuntVoltageInput.parentNode;
 
 				switch (measurementType) {
 					case 'OPAMP-ADC':
 						opampGainContainer.classList.remove('hidden');
+						opampOffsetVoltageMaxContainer.classList.remove('hidden');
 						minShuntVoltageContainer.classList.remove('hidden');
 						maxShuntVoltageContainer.classList.remove('hidden');
 						break;
 					case 'ADC':
 						opampGainContainer.classList.add('hidden');
+						opampOffsetVoltageMaxContainer.classList.add('hidden');
 						minShuntVoltageContainer.classList.add('hidden');
 						maxShuntVoltageContainer.classList.add('hidden');
 						opampGainInput.value = 1;
@@ -320,6 +367,7 @@
 			calculateButton.addEventListener('click', () => {
 				let values = getValues();
 
+				maxVoltageLossInput.value = formatResult(calculateMaxVoltageLoss(values), 'V');
 				minShuntVoltageInput.value = formatResult(calculateMinShuntVoltage(values), 'V');
 				maxShuntVoltageInput.value = formatResult(calculateMaxShuntVoltage(values), 'V');
 				shuntVoltageInput.value = formatResult(calculateShuntVoltage(values), 'V');
@@ -328,6 +376,7 @@
 				shuntVoltageStepsInput.value = formatResult(values.shuntVoltageStepsValue, 'V');
 				shuntCurrentResolutionInput.value = formatResult(calculateShuntCurrentResolution(values), 'A');
 				maxMeasurableCurrentInput.value = formatResult(calculateMaxMeasurableCurrent(values), 'A');
+				minMeasurableCurrentInput.value = formatResult(calculateMinMeasurableCurrent(values), 'A');
 			});
 		</script>
 	</body>
