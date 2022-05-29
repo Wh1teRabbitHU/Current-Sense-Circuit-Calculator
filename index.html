@@ -140,6 +140,7 @@
 						<option value="1000">kΩ</option>
 						<option value="1" selected>Ω</option>
 						<option value="0.001">mΩ</option>
+						<option value="0.000001">uΩ</option>
 					</select>
 				</div>
 
@@ -151,6 +152,7 @@
 						<option value="1000" selected>kΩ</option>
 						<option value="1">Ω</option>
 						<option value="0.001">mΩ</option>
+						<option value="0.000001">uΩ</option>
 					</select>
 				</div>
 
@@ -335,8 +337,12 @@
 					return prefix + number.toFixed(4) + ' ' + unit;
 				} else if (number >= 0.001) {
 					return prefix + (number / 0.001).toFixed(4) + ` m${unit}`;
-				} else {
+				} else if (number >= 0.000001) {
 					return prefix + (number / 0.000001).toFixed(4) + ` u${unit}`;
+				} else if (number >= 0.000000001) {
+					return prefix + (number / 0.000000001).toFixed(4) + ` n${unit}`;
+				} else {
+					return prefix + (number / 0.000000000001).toFixed(4) + ` p${unit}`;
 				}
 			}
 
